@@ -2,11 +2,16 @@ import axios from "axios";
 import { useAuthStore } from "../store/authStore.js";
 
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3030/api",
+  baseURL: "/api",
   headers: {
     "Content-Type": "application/json",
   },
 });
+
+
+
+
+
 
 API.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;

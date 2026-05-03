@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getOrdersApi, updateOrderStatusApi, createOrderApi } from "../api/ordersApi.js";
+import { getOrdersApi, updateOrderStatusApi, createOrderApi, parseOrderApi } from "../api/ordersApi.js";
 import { toast } from "sonner";
 
 export const useOrders = () => {
@@ -26,11 +26,19 @@ export const useOrders = () => {
     },
   });
 
+  const parseOrderMutation = useMutation({
+    mutationFn: parseOrderApi,
+  });
+
   return {
     orders: ordersQuery.data || [],
     isLoading: ordersQuery.isLoading,
     createOrder: createOrderMutation.mutateAsync,
     updateStatus: updateStatusMutation.mutateAsync,
+    parseOrder: parseOrderMutation.mutateAsync,
     isUpdating: updateStatusMutation.isPending,
+    isParsing: parseOrderMutation.isPending,
+    isCreating: createOrderMutation.isPending,
   };
 };
+

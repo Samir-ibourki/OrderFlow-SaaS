@@ -1,46 +1,62 @@
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { loginApi, registerApi, profileApi } from "../api/authApi.js";
 import { useLocation } from "wouter";
+import { useAuthStore } from "../store/authStore.js";
 
 export const useAuth = () => {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
+  const { user, token, isAuthenticated, setAuth, logoutStore, setUser } = useAuthStore();
 
-  const { data: user, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["auth-profile"],
     queryFn: profileApi,
     retry: false,
-    enabled: !!localStorage.getItem("token"), 
+    enabled: !!token, 
   });
 
+
+  useEffect(() => {
+    if (data) {
+      setUser(data);
+    }
+    if (isError) {
+      console.error("Auth Error:", error);
+      logoutStore();
+    }
+  }, [data, isError, error, setUser, logoutStore]);
+
   const loginMutation = useMutation({
-    mutationFn: loginApi,
+    mutationFn: (credentials) => loginApi(credentials),
     onSuccess: (res) => {
-      const token = res.data.data.token;
-      localStorage.setItem("token", token);
-      queryClient.invalidateQueries({ queryKey: ["auth-profile"] });
-      setLocation("/"); 
+      const { user: userData, token: userToken } = res.data.data;
+      setAuth(userData, userToken);
+      queryClient.setQueryData(["auth-profile"], userData);
+      setLocation("/");
     },
   });
 
   const registerMutation = useMutation({
-    mutationFn: registerApi,
+    mutationFn: (userData) => registerApi(userData),
     onSuccess: (res) => {
-      const token = res.data.data.token;
-      localStorage.setItem("token", token);
-      queryClient.invalidateQueries({ queryKey: ["auth-profile"] });
+      const { user: userData, token: userToken } = res.data.data;
+      setAuth(userData, userToken);
+      queryClient.setQueryData(["auth-profile"], userData);
       setLocation("/");
     },
   });
 
   const logout = () => {
-    localStorage.removeItem("token");
-    queryClient.setQueryData(["auth-profile"], null);
+    logoutStore();
+    queryClient.clear();
     setLocation("/login");
   };
 
   return {
     user,
+    token,
+    isAuthenticated,
     isLoading,
     isError,
     login: loginMutation.mutateAsync,

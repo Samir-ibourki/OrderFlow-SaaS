@@ -1,26 +1,33 @@
 import { useQuery } from "@tanstack/react-query";
-import { getDashboardStatsApi, getSalesOverviewApi, getTopProductsApi } from "../api/analyticsApi.js";
+import { getSummaryApi, getTopProductsApi, getByStatusApi, getByChannelApi } from "../api/analyticsApi.js";
 
-export const useAnalytics = (range = "7d") => {
-  const dashboardQuery = useQuery({
-    queryKey: ["dashboard-stats"],
-    queryFn: getDashboardStatsApi,
-  });
-
-  const salesQuery = useQuery({
-    queryKey: ["sales-overview", range],
-    queryFn: () => getSalesOverviewApi(range),
+export const useAnalytics = () => {
+  const summaryQuery = useQuery({
+    queryKey: ["analytics", "summary"],
+    queryFn: getSummaryApi,
   });
 
   const topProductsQuery = useQuery({
-    queryKey: ["top-products"],
-    queryFn: getTopProductsApi,
+    queryKey: ["analytics", "topProducts"],
+    queryFn: () => getTopProductsApi(5),
+  });
+
+  const byStatusQuery = useQuery({
+    queryKey: ["analytics", "byStatus"],
+    queryFn: getByStatusApi,
+  });
+
+  const byChannelQuery = useQuery({
+    queryKey: ["analytics", "byChannel"],
+    queryFn: getByChannelApi,
   });
 
   return {
-    stats: dashboardQuery.data,
-    salesData: salesQuery.data || [],
+    summary: summaryQuery.data,
     topProducts: topProductsQuery.data || [],
-    isLoading: dashboardQuery.isLoading || salesQuery.isLoading || topProductsQuery.isLoading,
+    byStatus: byStatusQuery.data || [],
+    byChannel: byChannelQuery.data || [],
+    isLoading: summaryQuery.isLoading || topProductsQuery.isLoading || byStatusQuery.isLoading || byChannelQuery.isLoading,
   };
 };
+
