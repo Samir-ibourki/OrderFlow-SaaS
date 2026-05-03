@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import sequelize from "./src/config/database.js";
 
-// Models (Import for side effects and sync)
+// Models
 import "./src/models/User.js";
 import "./src/models/Customer.js";
 import "./src/models/Product.js";
