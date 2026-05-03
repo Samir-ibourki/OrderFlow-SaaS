@@ -4,10 +4,11 @@ import { authenticateToken } from "../middleware/auth.js";
 
 const router = Router();
 router.use(authenticateToken);
-router.get("/shipping", getShipments);
+router.get("/", getShipments);
 router.get("/couriers", getCouriers);
 router.get("/stats", getShippingStats);
-router.post("/shipping", createShipmentForOrder);
+router.post("/", createShipmentForOrder);
+
 router.get("/order/:orderId", getShipmentForOrder);
 router.get("/:id", getShipment);
 router.patch("/:id/courier", assignCourier);
