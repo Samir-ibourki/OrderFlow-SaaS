@@ -1,16 +1,44 @@
-import { Order, WebhookEvent } from "../models/index.js";
+import { Order, WebhookEvent, Customer } from "../models/index.js";
 import { generateOrderNumber } from "../utils/generateOrderNumber.js";
+import OpenAI from "openai";
 
-function extractWhatsAppOrder(payload) {
-  const message = payload?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-  if (!message) return null;
-  return {
-    customerPhone: message.from || "unknown",
-    customerName: payload?.entry?.[0]?.changes?.[0]?.value?.contacts?.[0]?.profile?.name || "WhatsApp Customer",
-    product: message.text?.body || "Unknown Product",
-    source: "whatsapp",
-    notes: `WhatsApp message ID: ${message.id}`,
-  };
+let _openai = null;
+
+function getOpenAI() {
+  if (!_openai) {
+    if (!process.env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is missing");
+    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return _openai;
+}
+
+async function analyzeMessage(text) {
+  const completion = await getOpenAI().chat.completions.create({
+    model: "gpt-4o-mini",
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content: `You are an invisible filter for an e-commerce system.
+Analyze the customer's message.
+RULE 1: If the customer does not explicitly mention a phone number in their message, return: { "action": "ignore" }
+RULE 2: If the customer does not provide the city or address, return: { "action": "ignore" }
+RULE 3: If the customer provides the Product, City/Address AND a Phone number in the text, return: 
+{
+  "action": "create_order",
+  "data": {
+    "customerPhone": "The extracted phone number",
+    "customerName": "The extracted name if any, otherwise 'Customer'",
+    "customerCity": "The extracted city or address",
+    "product": "The requested product",
+    "quantity": 1
+  }
+}`
+      },
+      { role: "user", content: text },
+    ],
+  });
+  return JSON.parse(completion.choices[0].message.content);
 }
 
 function extractInstagramOrder(payload) {
@@ -21,7 +49,7 @@ function extractInstagramOrder(payload) {
     customerPhone: messaging?.sender?.id || "unknown",
     product: messaging?.message?.text || "Instagram Order",
     source: "instagram",
-    notes: `Instagram sender: ${messaging?.sender?.id}`,
+    notes: `Sender ID: ${messaging?.sender?.id}`,
   };
 }
 
@@ -35,7 +63,7 @@ function extractTikTokOrder(payload) {
     quantity: order.item_list?.[0]?.quantity || 1,
     price: Number(order.payment?.total_amount || 0),
     source: "tiktok",
-    notes: `TikTok Order ID: ${order.order_id}`,
+    notes: `Order ID: ${order.order_id}`,
   };
 }
 
@@ -52,31 +80,95 @@ function extractWebsiteOrder(payload) {
   };
 }
 
-const EXTRACTORS = { whatsapp: extractWhatsAppOrder, instagram: extractInstagramOrder, tiktok: extractTikTokOrder, website: extractWebsiteOrder };
-
 export async function processWebhook(channel, payload) {
   const event = await WebhookEvent.create({ channel, rawPayload: payload });
-  const extractor = EXTRACTORS[channel];
-  if (!extractor) return { event, order: null, error: `Unknown channel: ${channel}` };
-  const extracted = extractor(payload);
-  if (!extracted || !extracted.customerPhone) return { event, order: null, error: "Could not extract order data" };
-  const orderData = {
-    orderNumber: generateOrderNumber(),
-    customerName: extracted.customerName || "Unknown",
-    customerPhone: String(extracted.customerPhone),
-    customerCity: extracted.customerCity || null,
-    product: extracted.product || "Unknown Product",
-    quantity: extracted.quantity || 1,
-    price: extracted.price || 0,
-    status: "new_order",
-    source: extracted.source || channel,
-    notes: extracted.notes || null,
-  };
-  const order = await Order.create(orderData);
-  
-  event.processed = true;
-  event.orderId = order.id;
-  await event.save();
-  
-  return { event, order };
+
+  if (channel === "whatsapp") {
+    const message = payload?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+    
+    if (!message || !message.text) {
+      return { event, order: null, error: "Unsupported format" };
+    }
+
+    const messageText = message.text.body;
+    const aiResult = await analyzeMessage(messageText);
+
+    if (aiResult.action === "ignore") {
+      event.processed = true;
+      await event.save();
+      return { event, order: null, status: "ignored_by_ai" };
+    }
+
+    if (aiResult.action === "create_order") {
+      const extractedPhone = aiResult.data.customerPhone;
+      const extractedName = aiResult.data.customerName || "Customer";
+
+      let [customer] = await Customer.findOrCreate({
+        where: { phone: extractedPhone },
+        defaults: {
+          name: extractedName,
+          city: aiResult.data.customerCity || null
+        }
+      });
+
+      const order = await Order.create({
+        orderNumber: generateOrderNumber(),
+        customerId: customer.id,
+        customerName: extractedName,
+        customerPhone: extractedPhone,
+        customerCity: aiResult.data.customerCity || null,
+        product: aiResult.data.product || "Unknown product",
+        quantity: aiResult.data.quantity || 1,
+        price: 0,
+        status: "new_order",
+        source: "whatsapp",
+        notes: messageText,
+      });
+
+      event.processed = true;
+      event.orderId = order.id;
+      await event.save();
+
+      return { event, order, status: "order_created" };
+    }
+  } else {
+    let extracted = null;
+    if (channel === "instagram") extracted = extractInstagramOrder(payload);
+    else if (channel === "tiktok") extracted = extractTikTokOrder(payload);
+    else if (channel === "website") extracted = extractWebsiteOrder(payload);
+
+    if (!extracted || !extracted.customerPhone) {
+      return { event, order: null, error: "Unconfigured channel or invalid payload" };
+    }
+
+    let [customer] = await Customer.findOrCreate({
+      where: { phone: extracted.customerPhone },
+      defaults: {
+        name: extracted.customerName,
+        city: extracted.customerCity || null
+      }
+    });
+
+    const order = await Order.create({
+      orderNumber: generateOrderNumber(),
+      customerId: customer.id,
+      customerName: extracted.customerName,
+      customerPhone: String(extracted.customerPhone),
+      customerCity: extracted.customerCity || null,
+      product: extracted.product || "Unknown product",
+      quantity: extracted.quantity || 1,
+      price: extracted.price || 0,
+      status: "new_order",
+      source: extracted.source || channel,
+      notes: extracted.notes || null,
+    });
+    
+    event.processed = true;
+    event.orderId = order.id;
+    await event.save();
+    
+    return { event, order };
+  }
+
+  return { event, order: null, error: "Unconfigured channel" };
 }
