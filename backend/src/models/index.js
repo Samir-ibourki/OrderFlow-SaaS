@@ -6,8 +6,8 @@ import User from "./User.js";
 import Shipment from "./Shipment.js";
 import WebhookEvent from "./WebhookEvent.js";
 
-Customer.hasMany(Order, { foreignKey: "customerPhone", sourceKey: "phone" });
-Order.belongsTo(Customer, { foreignKey: "customerPhone", targetKey: "phone" });
+Customer.hasMany(Order, { foreignKey: "customerId" });
+Order.belongsTo(Customer, { foreignKey: "customerId" });
 
 Shipment.belongsTo(Order, { foreignKey: "orderId" });
 Order.hasOne(Shipment, { foreignKey: "orderId" });

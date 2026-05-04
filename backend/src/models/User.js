@@ -26,6 +26,11 @@ const User = sequelize.define("User", {
     allowNull: false,
     defaultValue: "merchant",
   },
+  metaAccessToken: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: "meta_access_token",
+  }
 }, {
   tableName: "users",
   underscored: true,

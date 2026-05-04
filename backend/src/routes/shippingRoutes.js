@@ -3,7 +3,9 @@ import { getShipments, getShipment, createShipmentForOrder, assignCourier, updat
 import { authenticateToken } from "../middleware/auth.js";
 
 const router = Router();
+
 router.use(authenticateToken);
+
 router.get("/", getShipments);
 router.get("/couriers", getCouriers);
 router.get("/stats", getShippingStats);
@@ -13,4 +15,5 @@ router.get("/order/:orderId", getShipmentForOrder);
 router.get("/:id", getShipment);
 router.patch("/:id/courier", assignCourier);
 router.patch("/:id/tracking", updateTracking);
+
 export default router;

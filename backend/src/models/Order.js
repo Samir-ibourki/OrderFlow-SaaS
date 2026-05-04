@@ -13,6 +13,11 @@ const Order = sequelize.define("Order", {
     unique: true,
     field: "order_number",
   },
+  customerId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: "customer_id",
+  },
   customerName: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -70,6 +75,12 @@ const Order = sequelize.define("Order", {
 }, {
   tableName: "orders",
   underscored: true,
+  indexes: [
+    { fields: ["order_number"] },
+    { fields: ["customer_id"] }, 
+    { fields: ["status"] }, 
+    { fields: ["created_at"] } 
+  ]
 });
 
 export default Order;

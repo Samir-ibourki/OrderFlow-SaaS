@@ -22,6 +22,9 @@ const Customer = sequelize.define("Customer", {
 }, {
   tableName: "customers",
   underscored: true,
+  indexes: [
+    { fields: ["phone"] } 
+  ]
 });
 
 export default Customer;

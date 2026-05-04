@@ -1,13 +1,16 @@
 import { Router } from "express";
 import { listOrders, getRecentOrders, getOrder, createOrder, updateOrder, deleteOrder, parseOrder } from "../controllers/orders.js";
+import { authenticateToken } from "../middleware/auth.js";
 
 const router = Router();
+
+router.use(authenticateToken);
+
 router.get("/", listOrders);
 router.post("/parse", parseOrder);
 router.get("/recent", getRecentOrders);
 router.get("/:id", getOrder);
 router.post("/", createOrder);
-
 router.patch("/:id", updateOrder);
 router.delete("/:id", deleteOrder);
 export default router;

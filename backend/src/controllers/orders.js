@@ -1,5 +1,5 @@
 import { Op } from "sequelize";
-import { Order } from "../models/index.js";
+import { Customer, Order } from "../models/index.js";
 import { generateOrderNumber } from "../utils/generateOrderNumber.js";
 import OpenAI from "openai";
 
@@ -20,6 +20,12 @@ function formatOrder(order) {
 export async function listOrders(req, res) {
   try {
     const { status, source, search } = req.query;
+
+    // Pagination: page 1, 50 par page
+    const page = parseInt(req.query.page) || 1; 
+    const limit = parseInt(req.query.limit) || 50; 
+    const offset = (page - 1) * limit;
+
     const where = {};
     if (status) where.status = status;
     if (source) where.source = source;
@@ -34,6 +40,8 @@ export async function listOrders(req, res) {
     const orders = await Order.findAll({
       where,
       order: [["createdAt", "DESC"]],
+      limit,
+      offset
     });
     res.json(orders.map(formatOrder));
   } catch (error) {
@@ -69,11 +77,22 @@ export async function getOrder(req, res) {
 export async function createOrder(req, res) {
   try {
     const { customerName, customerPhone, customerCity, product, quantity, price, source, notes } = req.body;
+    
     if (!customerName || !customerPhone || !product || price == null) {
-      return res.status(400).json({ error: "customerName, customerPhone, product and price are required" });
+      return res.status(400).json({ error: "Les champs nom, téléphone, produit et prix sont obligatoires" });
     }
+
+    let [customer] = await Customer.findOrCreate({
+      where: { phone: customerPhone },
+      defaults: {
+        name: customerName,
+        city: customerCity || null
+      }
+    });
+
     const order = await Order.create({
       orderNumber: generateOrderNumber(),
+      customerId: customer.id,
       customerName,
       customerPhone,
       customerCity: customerCity || null,
@@ -83,6 +102,7 @@ export async function createOrder(req, res) {
       source: source || "manual",
       notes: notes || null,
     });
+    
     res.status(201).json(formatOrder(order));
   } catch (error) {
     res.status(500).json({ error: error.message });
