@@ -25,3 +25,5 @@ export const SHIPMENT_STATUS_COLORS = {
 };
 
 export const ORDER_SOURCES = ["whatsapp", "instagram", "tiktok", "facebook", "website", "manual"];
+
+export const CHART_COLORS = ["#f97316", "#3b82f6", "#10b981", "#8b5cf6", "#f43f5e", "#06b6d4"];

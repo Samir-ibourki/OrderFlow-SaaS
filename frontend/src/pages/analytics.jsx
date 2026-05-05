@@ -1,28 +1,10 @@
 import { useAnalytics } from "@/hooks/useAnalytics.js";
+import { CHART_COLORS } from "@/utils/constants.js";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.jsx";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { Loader2, TrendingUp, ShoppingBag, Users, Percent } from "lucide-react";
 
-const COLORS = ["#f97316", "#3b82f6", "#10b981", "#8b5cf6", "#f43f5e", "#06b6d4"];
-
-function StatCard({ icon: Icon, label, value, sub }) {
-  return (
-    <Card>
-      <CardContent className="pt-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">{label}</p>
-            <p className="text-3xl font-bold mt-1">{value}</p>
-            {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
-          </div>
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <Icon className="w-5 h-5 text-primary" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+import StatCard from "@/components/analytics/StatCard.jsx";
 
 export default function AnalyticsPage() {
   const { summary, topProducts, byStatus, byChannel, isLoading } = useAnalytics();
@@ -108,7 +90,7 @@ export default function AnalyticsPage() {
                         labelLine={false}
                       >
                         {statusData.map((_, i) => (
-                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip />
@@ -147,4 +129,3 @@ export default function AnalyticsPage() {
     </div>
   );
 }
-
