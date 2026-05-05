@@ -14,7 +14,8 @@ export default function KanbanPage() {
   const [search, setSearch] = useState("");
   const { 
     orders, isLoading, updateStatus, isUpdating, 
-    createOrder, parseOrder, isParsing, isCreating 
+    createOrder, parseOrder, isParsing, isCreating,
+    deleteOrder
   } = useOrders();
 
   const [localOrders, setLocalOrders] = useState([]);
@@ -61,6 +62,11 @@ export default function KanbanPage() {
   const handleStatusChange = (id, status) => {
     setLocalOrders(prev => prev.map(o => o.id.toString() === id.toString() ? { ...o, status } : o));
     updateStatus({ id, status });
+  };
+
+  const handleDelete = (id) => {
+    setLocalOrders(prev => prev.filter(o => o.id.toString() !== id.toString()));
+    deleteOrder(id);
   };
 
   return (
@@ -132,6 +138,7 @@ export default function KanbanPage() {
                                 provided={provided}
                                 isDragging={snapshot.isDragging}
                                 onStatusChange={handleStatusChange}
+                                onDelete={handleDelete}
                                 isUpdating={isUpdating}
                               />
                             )}

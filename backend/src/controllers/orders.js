@@ -1,5 +1,5 @@
 import { Op } from "sequelize";
-import { Customer, Order } from "../models/index.js";
+import { Customer, Order, Product } from "../models/index.js";
 import { generateOrderNumber } from "../utils/generateOrderNumber.js";
 import OpenAI from "openai";
 
@@ -102,6 +102,13 @@ export async function createOrder(req, res) {
       source: source || "manual",
       notes: notes || null,
     });
+
+    // Decrement product stock
+    const matchedProduct = await Product.findOne({ where: { name: product } });
+    if (matchedProduct) {
+      matchedProduct.stock = Math.max(0, matchedProduct.stock - (quantity || 1));
+      await matchedProduct.save();
+    }
     
     res.status(201).json(formatOrder(order));
   } catch (error) {
@@ -118,6 +125,8 @@ export async function updateOrder(req, res) {
     const order = await Order.findByPk(id);
     if (!order) return res.status(404).json({ error: "Order not found" });
     
+    const oldStatus = order.status;
+
     if (customerName  !== undefined) order.customerName  = customerName;
     if (customerPhone !== undefined) order.customerPhone = customerPhone;
     if (customerCity  !== undefined) order.customerCity  = customerCity;
@@ -129,6 +138,28 @@ export async function updateOrder(req, res) {
     if (source        !== undefined) order.source        = source;
     
     await order.save();
+
+    // Stock adjustment on status change
+    if (status !== undefined && status !== oldStatus) {
+      const matchedProduct = await Product.findOne({ where: { name: order.product } });
+      if (matchedProduct) {
+        const qty = order.quantity || 1;
+        const wasActive = oldStatus !== "cancelled";
+        const isNowActive = status !== "cancelled";
+
+        // Active → Cancelled: restore stock
+        if (wasActive && !isNowActive) {
+          matchedProduct.stock += qty;
+          await matchedProduct.save();
+        }
+        // Cancelled → Active: decrement stock
+        if (!wasActive && isNowActive) {
+          matchedProduct.stock = Math.max(0, matchedProduct.stock - qty);
+          await matchedProduct.save();
+        }
+      }
+    }
+
     res.json(formatOrder(order));
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -139,8 +170,20 @@ export async function deleteOrder(req, res) {
   try {
     const id = Number(req.params.id);
     if (!id) return res.status(400).json({ error: "Invalid id" });
-    const deleted = await Order.destroy({ where: { id } });
-    if (!deleted) return res.status(404).json({ error: "Order not found" });
+
+    const order = await Order.findByPk(id);
+    if (!order) return res.status(404).json({ error: "Order not found" });
+
+    // Restore stock if the order was not already cancelled
+    if (order.status !== "cancelled") {
+      const matchedProduct = await Product.findOne({ where: { name: order.product } });
+      if (matchedProduct) {
+        matchedProduct.stock += (order.quantity || 1);
+        await matchedProduct.save();
+      }
+    }
+
+    await order.destroy();
     res.sendStatus(204);
   } catch (error) {
     res.status(500).json({ error: error.message });

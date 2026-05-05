@@ -6,17 +6,20 @@ import { Label } from "@/components/ui/label.jsx";
 import { Textarea } from "@/components/ui/textarea.jsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.jsx";
 import { useToast } from "@/hooks/use-toast.js";
+import { useProducts } from "@/hooks/useProducts.js";
 import { ORDER_SOURCES } from "@/utils/constants.js";
 import { Plus, Sparkles, Loader2 } from "lucide-react";
 
 export default function CaptureOrderDialog({ onCreate, onParse, isParsing, isCreating }) {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [unitPrice, setUnitPrice] = useState(0);
   const [form, setForm] = useState({ 
     customerName: "", customerPhone: "", customerCity: "", 
     product: "", quantity: 1, price: "", source: "manual", notes: "" 
   });
   const { toast } = useToast();
+  const { products } = useProducts();
 
   const handleAIParse = async () => {
     try {
@@ -31,12 +34,35 @@ export default function CaptureOrderDialog({ onCreate, onParse, isParsing, isCre
     }
   };
 
+  const handleProductSelect = (productId) => {
+    const selected = products?.find((p) => p.id.toString() === productId);
+    if (selected) {
+      const up = Number(selected.price);
+      setUnitPrice(up);
+      setForm((f) => ({ 
+        ...f, 
+        product: selected.name, 
+        price: (up * Number(f.quantity || 1)).toString() 
+      }));
+    }
+  };
+
+  const handleQuantityChange = (newQty) => {
+    const qty = Number(newQty) || 1;
+    setForm((f) => ({ 
+      ...f, 
+      quantity: newQty, 
+      price: unitPrice > 0 ? (unitPrice * qty).toString() : f.price 
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await onCreate({ ...form, quantity: Number(form.quantity), price: Number(form.price) });
       setOpen(false);
       setMessage("");
+      setUnitPrice(0);
       setForm({ 
         customerName: "", customerPhone: "", customerCity: "", 
         product: "", quantity: 1, price: "", source: "manual", notes: "" 
@@ -44,6 +70,9 @@ export default function CaptureOrderDialog({ onCreate, onParse, isParsing, isCre
     } catch (err) {
     }
   };
+
+
+  const hasProducts = products && products.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -57,7 +86,7 @@ export default function CaptureOrderDialog({ onCreate, onParse, isParsing, isCre
         <div className="space-y-4">
           <div className="p-3 rounded-lg bg-muted/50 space-y-2">
             <Label className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-primary" />AI Parse from WhatsApp/Instagram message
+              <Sparkles className="w-4 h-4 text-primary" />AI Parse from Message
             </Label>
             <Textarea 
               placeholder="Paste customer message here... (Darija, French, Arabic, English)" 
@@ -76,6 +105,7 @@ export default function CaptureOrderDialog({ onCreate, onParse, isParsing, isCre
               {isParsing ? <><Loader2 className="w-3 h-3 mr-2 animate-spin" />Parsing…</> : <><Sparkles className="w-3 h-3 mr-2" />Auto-fill with AI</>}
             </Button>
           </div>
+
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -97,6 +127,7 @@ export default function CaptureOrderDialog({ onCreate, onParse, isParsing, isCre
                 />
               </div>
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>City</Label>
@@ -118,15 +149,38 @@ export default function CaptureOrderDialog({ onCreate, onParse, isParsing, isCre
                 </Select>
               </div>
             </div>
+
             <div className="space-y-1">
               <Label>Product *</Label>
-              <Input 
-                placeholder="Djellaba taille M..." 
-                value={form.product} 
-                onChange={(e) => setForm((f) => ({ ...f, product: e.target.value }))} 
-                required 
-              />
+              {hasProducts ? (
+                <Select onValueChange={handleProductSelect}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a product…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products.map((p) => (
+                      <SelectItem 
+                        key={p.id} 
+                        value={p.id.toString()} 
+                        disabled={p.stock === 0}
+                      >
+                        {p.name} — {p.stock > 0 ? `${p.stock} in stock` : "Out of stock"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Select disabled>
+                  <SelectTrigger>
+                    <SelectValue placeholder="No products available. Add some in Products page." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none" disabled>No products available</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Quantity</Label>
@@ -134,7 +188,7 @@ export default function CaptureOrderDialog({ onCreate, onParse, isParsing, isCre
                   type="number" 
                   min={1} 
                   value={form.quantity} 
-                  onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))} 
+                  onChange={(e) => handleQuantityChange(e.target.value)} 
                 />
               </div>
               <div className="space-y-1">
@@ -148,8 +202,13 @@ export default function CaptureOrderDialog({ onCreate, onParse, isParsing, isCre
                   onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} 
                   required 
                 />
+                {unitPrice > 0 && Number(form.quantity) > 1 && (
+                  <p className="text-xs text-muted-foreground">{unitPrice.toFixed(2)} MAD × {form.quantity} units</p>
+                )}
               </div>
             </div>
+
+
             <div className="space-y-1">
               <Label>Notes</Label>
               <Textarea 
@@ -159,6 +218,7 @@ export default function CaptureOrderDialog({ onCreate, onParse, isParsing, isCre
                 rows={2} 
               />
             </div>
+
             <Button type="submit" className="w-full" disabled={isCreating}>
               {isCreating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating…</> : "Create Order"}
             </Button>

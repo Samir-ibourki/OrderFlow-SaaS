@@ -1,3 +1,5 @@
+import { LayoutDashboard, Users, Package, Settings, KanbanSquare, Truck } from "lucide-react";
+
 export const ORDER_COLUMNS = [
   { id: "new_order",            label: "New Orders",       color: "bg-blue-500" },
   { id: "pending_confirmation", label: "Pending",          color: "bg-yellow-500" },
@@ -27,3 +29,12 @@ export const SHIPMENT_STATUS_COLORS = {
 export const ORDER_SOURCES = ["whatsapp", "instagram", "tiktok", "facebook", "website", "manual"];
 
 export const CHART_COLORS = ["#f97316", "#3b82f6", "#10b981", "#8b5cf6", "#f43f5e", "#06b6d4"];
+
+export const NAV_ITEMS = [
+  { href: "/",          label: "Kanban",    icon: KanbanSquare },
+  { href: "/analytics", label: "Analytics", icon: LayoutDashboard },
+  { href: "/customers", label: "Customers", icon: Users },
+  { href: "/products",  label: "Products",  icon: Package },
+  { href: "/shipping",  label: "Shipping",  icon: Truck },
+  { href: "/settings",  label: "Settings",  icon: Settings },
+];

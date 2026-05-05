@@ -13,7 +13,8 @@ export const useAuth = () => {
     queryKey: ["auth-profile"],
     queryFn: profileApi,
     retry: false,
-    enabled: !!token, 
+    enabled: !!token && isAuthenticated,
+    staleTime: 5 * 60 * 1000,
   });
 
 

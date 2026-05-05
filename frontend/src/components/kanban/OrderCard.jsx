@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card.jsx";
+import { Button } from "@/components/ui/button.jsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.jsx";
 import { ORDER_COLUMNS, SOURCE_COLORS } from "@/utils/constants.js";
-import { Phone, MapPin, Package } from "lucide-react";
+import { Phone, MapPin, Package, Trash2 } from "lucide-react";
 
-export default function OrderCard({ order, onStatusChange, isUpdating, provided, isDragging }) {
+export default function OrderCard({ order, onStatusChange, onDelete, isUpdating, provided, isDragging }) {
   const sourceClass = SOURCE_COLORS[order.source] || "bg-gray-100 text-gray-800";
   return (
     <div
@@ -17,7 +18,20 @@ export default function OrderCard({ order, onStatusChange, isUpdating, provided,
         <CardHeader className="pb-2 pt-3 px-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-mono text-muted-foreground">{order.orderNumber}</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${sourceClass}`}>{order.source}</span>
+            <div className="flex items-center gap-1">
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${sourceClass}`}>{order.source}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 text-muted-foreground hover:text-destructive"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(order.id);
+                }}
+              >
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="px-3 pb-3 space-y-2">

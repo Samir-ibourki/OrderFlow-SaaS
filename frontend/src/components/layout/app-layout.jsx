@@ -2,20 +2,19 @@ import { Link, useLocation } from "wouter";
 import { LayoutDashboard, Users, Package, Settings, KanbanSquare, Bell, Truck, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils.js";
 import { useAuth } from "@/hooks/useAuth.js";
+import { NAV_ITEMS } from "../../utils/constants";
 
-const NAV_ITEMS = [
-  { href: "/",          label: "Kanban",    icon: KanbanSquare },
-  { href: "/analytics", label: "Analytics", icon: LayoutDashboard },
-  { href: "/customers", label: "Customers", icon: Users },
-  { href: "/products",  label: "Products",  icon: Package },
-  { href: "/shipping",  label: "Shipping",  icon: Truck },
-  { href: "/settings",  label: "Settings",  icon: Settings },
-];
+
 
 export function AppLayout({ children }) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
-  const initials = user?.name ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "?";
+  const displayName = user?.fullName || user?.name;
+  const initials = displayName
+    ? displayName.split(" ").length >= 2
+      ? displayName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+      : displayName.slice(0, 2).toUpperCase()
+    : "?";
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
@@ -47,7 +46,7 @@ export function AppLayout({ children }) {
               <span className="text-secondary-foreground font-medium text-xs">{initials}</span>
             </div>
             <div className="overflow-hidden flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.name || "Merchant"}</p>
+              <p className="text-sm font-medium truncate">{displayName || "Merchant"}</p>
               <p className="text-xs text-muted-foreground truncate">{user?.email || ""}</p>
             </div>
             <button onClick={logout} className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded" title="Sign out">

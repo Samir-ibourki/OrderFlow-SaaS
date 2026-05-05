@@ -8,11 +8,7 @@ const API = axios.create({
   },
 });
 
-
-
-
-
-
+// Attach token to every request
 API.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
   if (token) {
@@ -21,5 +17,16 @@ API.interceptors.request.use((config) => {
   return config;
 });
 
-export default API;
+// Handle 401 responses — auto-logout on expired/invalid token
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      const { logoutStore } = useAuthStore.getState();
+      logoutStore();
+    }
+    return Promise.reject(error);
+  }
+);
 
+export default API;
